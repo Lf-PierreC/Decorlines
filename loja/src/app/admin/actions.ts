@@ -107,7 +107,11 @@ export async function removeProduct(form: FormData) {
 
 export async function updateOrderStatus(form: FormData) {
   await requireAdmin();
-  setStatus(String(form.get("code") ?? ""), String(form.get("status") ?? ""));
+  setStatus(
+    String(form.get("code") ?? ""),
+    String(form.get("status") ?? ""),
+    String(form.get("trackingCode") ?? ""),
+  );
   revalidatePath("/admin/pedidos");
   revalidatePath("/conta");
 }

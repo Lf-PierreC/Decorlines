@@ -12,6 +12,7 @@ export type Order = {
   total: number;
   payment: string;
   status: string;
+  tracking_code: string | null;
   created_at: string;
   customer: Customer | null;
   account_name?: string | null;
@@ -19,19 +20,22 @@ export type Order = {
 
 export const STATUS_LABEL: Record<string, string> = {
   pending: "Aguardando pagamento",
-  paid: "Pago",
-  shipped: "Enviado",
+  paid: "Pago · Em preparação",
+  shipped: "Em rota de entrega",
   delivered: "Entregue",
   canceled: "Cancelado",
 };
 
-const SHIPPING = 19.9; // TODO: Kangu
-
-type RawOrder = Omit<Order, "items" | "customer"> & { items: string; customer: string | null };
+type RawOrder = Omit<Order, "items" | "customer"> & {
+  items: string;
+  customer: string | null;
+  tracking_code?: string | null;
+};
 
 function parse(r: RawOrder): Order {
   return {
     ...r,
+    tracking_code: r.tracking_code ?? null,
     items: JSON.parse(r.items) as OrderItem[],
     customer: r.customer ? (JSON.parse(r.customer) as Customer) : null,
   };
@@ -45,6 +49,7 @@ export function createOrder(input: {
   userId: number | null;
   items: { slug: string; qty: number }[];
   payment: "pix" | "card";
+  shippingPrice: number;
   customer: Customer | null;
 }): { ok: true; code: string; total: number } | { ok: false; error: string } {
   if (input.items.length === 0) return { ok: false, error: "Carrinho vazio" };
@@ -65,8 +70,9 @@ export function createOrder(input: {
       subtotal += p.price * i.qty;
     }
 
+    const shipping = Number(input.shippingPrice.toFixed(2));
     const discount = input.payment === "pix" ? subtotal * 0.05 : 0;
-    const total = subtotal + SHIPPING - discount;
+    const total = subtotal + shipping - discount;
     const code = `DL-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
 
     db.prepare(
@@ -77,7 +83,7 @@ export function createOrder(input: {
       input.userId,
       JSON.stringify(lines),
       subtotal,
-      SHIPPING,
+      shipping,
       discount,
       total,
       input.payment,
@@ -98,6 +104,18 @@ export function listOrders(userId: number): Order[] {
   return rows.map(parse);
 }
 
+export function getLastCustomerData(userId: number): Customer | null {
+  const row = db
+    .prepare("SELECT customer FROM orders WHERE user_id = ? AND customer IS NOT NULL ORDER BY id DESC LIMIT 1")
+    .get(userId) as unknown as { customer: string } | undefined;
+  if (!row?.customer) return null;
+  try {
+    return JSON.parse(row.customer) as Customer;
+  } catch {
+    return null;
+  }
+}
+
 export function listAllOrders(): Order[] {
   const rows = db
     .prepare(
@@ -108,15 +126,15 @@ export function listAllOrders(): Order[] {
   return rows.map(parse);
 }
 
-/** Troca o status; ao cancelar, devolve os itens ao estoque. */
-export function setOrderStatus(code: string, status: string) {
+/** Troca o status e código de rastreio; ao cancelar, devolve os itens ao estoque. */
+export function setOrderStatus(code: string, status: string, trackingCode?: string) {
   if (!(status in STATUS_LABEL)) return;
   db.exec("BEGIN IMMEDIATE");
   try {
-    const row = db.prepare("SELECT status, items FROM orders WHERE code = ?").get(code) as unknown as
-      | { status: string; items: string }
+    const row = db.prepare("SELECT status, items, tracking_code FROM orders WHERE code = ?").get(code) as unknown as
+      | { status: string; items: string; tracking_code: string | null }
       | undefined;
-    if (!row || row.status === status) {
+    if (!row) {
       db.exec("COMMIT");
       return;
     }
@@ -125,7 +143,14 @@ export function setOrderStatus(code: string, status: string) {
         db.prepare("UPDATE products SET stock = stock + ? WHERE slug = ?").run(i.qty, i.slug);
       }
     }
-    db.prepare("UPDATE orders SET status = ? WHERE code = ?").run(status, code);
+    const nextTracking = trackingCode !== undefined ? trackingCode.trim() || null : row.tracking_code;
+    // Se preencheu código de rastreio ainda em "paid", promove automaticamente para "shipped"
+    const finalStatus = nextTracking && status === "paid" && row.status === "paid" ? "shipped" : status;
+    db.prepare("UPDATE orders SET status = ?, tracking_code = ? WHERE code = ?").run(
+      finalStatus,
+      nextTracking,
+      code,
+    );
     db.exec("COMMIT");
   } catch {
     db.exec("ROLLBACK");

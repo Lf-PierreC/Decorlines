@@ -17,6 +17,15 @@ function columns(db: DatabaseSync, table: string) {
   return (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
 }
 
+function addColumnIfMissing(db: DatabaseSync, table: string, col: string, ddl: string) {
+  if (columns(db, table).includes(col)) return;
+  try {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`);
+  } catch {
+    // Outro worker paralelo já adicionou a coluna
+  }
+}
+
 /** O primeiro usuário cadastrado vira administrador (se ainda não houver nenhum). */
 export function ensureAdmin(db: DatabaseSync) {
   db.exec(`UPDATE users SET role = 'admin'
@@ -24,10 +33,9 @@ export function ensureAdmin(db: DatabaseSync) {
            AND NOT EXISTS (SELECT 1 FROM users WHERE role = 'admin')`);
 }
 
-function open() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  const db = new DatabaseSync(path.join(DATA_DIR, "loja.db"));
+function migrate(db: DatabaseSync) {
   db.exec(`
+    PRAGMA busy_timeout = 5000;
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
     CREATE TABLE IF NOT EXISTS users (
@@ -70,15 +78,38 @@ function open() {
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS addresses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      label TEXT NOT NULL,
+      recipient TEXT NOT NULL,
+      cep TEXT NOT NULL,
+      endereco TEXT NOT NULL,
+      numero TEXT NOT NULL,
+      complemento TEXT NOT NULL DEFAULT '',
+      bairro TEXT NOT NULL,
+      cidade TEXT NOT NULL,
+      uf TEXT NOT NULL,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS cards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      label TEXT NOT NULL,
+      brand TEXT NOT NULL,
+      holder_name TEXT NOT NULL,
+      last4 TEXT NOT NULL,
+      expiry TEXT NOT NULL,
+      token TEXT NOT NULL,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
-  // Migrações simples para bancos criados em versões anteriores.
-  if (!columns(db, "users").includes("role")) {
-    db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'customer'");
-  }
-  if (!columns(db, "orders").includes("customer")) {
-    db.exec("ALTER TABLE orders ADD COLUMN customer TEXT");
-  }
+  addColumnIfMissing(db, "users", "role", "TEXT NOT NULL DEFAULT 'customer'");
+  addColumnIfMissing(db, "orders", "customer", "TEXT");
+  addColumnIfMissing(db, "orders", "tracking_code", "TEXT");
   ensureAdmin(db);
 
   const { n } = db.prepare("SELECT COUNT(*) AS n FROM products").get() as { n: number };
@@ -91,6 +122,12 @@ function open() {
       ins.run(p.slug, p.name, p.category, p.price, p.tone, p.description, JSON.stringify(p.details), p.weightKg);
     }
   }
+}
+
+function open() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const db = new DatabaseSync(path.join(DATA_DIR, "loja.db"));
+  migrate(db);
   return db;
 }
 

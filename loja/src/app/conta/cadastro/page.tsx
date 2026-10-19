@@ -4,7 +4,12 @@ import { AuthForm } from "@/components/AuthForm";
 
 export const metadata = { title: "Cadastro — Decorlines" };
 
-export default async function CadastroPage() {
-  if (await getUser()) redirect("/conta");
-  return <AuthForm mode="register" />;
+export default async function CadastroPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
+  if (await getUser()) redirect(next === "/checkout" ? "/checkout" : "/conta");
+  return <AuthForm mode="register" next={next} />;
 }

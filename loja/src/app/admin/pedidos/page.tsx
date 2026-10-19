@@ -33,8 +33,14 @@ export default async function AdminPedidos() {
                       {o.payment === "pix" ? "Pix" : "Cartão"}
                     </p>
                   </div>
-                  <form action={updateOrderStatus} className="flex items-center gap-2">
+                  <form action={updateOrderStatus} className="flex flex-wrap items-center gap-2">
                     <input type="hidden" name="code" value={o.code} />
+                    <input
+                      name="trackingCode"
+                      defaultValue={o.tracking_code ?? ""}
+                      placeholder="Código de rastreio (ex: AB123456789BR)"
+                      className="w-64 border border-line bg-white px-3 py-2 text-sm"
+                    />
                     <select
                       name="status"
                       defaultValue={o.status}
@@ -63,6 +69,11 @@ export default async function AdminPedidos() {
                         <p className="text-muted">
                           {c.bairro} · {c.cidade}/{c.uf} · CEP {c.cep}
                         </p>
+                        {c.frete_metodo && (
+                          <p className="mt-2 text-xs font-medium text-foreground">
+                            Envio: {c.frete_metodo}
+                          </p>
+                        )}
                       </>
                     ) : (
                       <p className="text-muted">Sem dados de entrega registrados.</p>
@@ -82,7 +93,10 @@ export default async function AdminPedidos() {
                       ))}
                     </ul>
                     <div className="mt-3 space-y-1 border-t border-line pt-3 text-muted">
-                      <p className="flex justify-between"><span>Frete</span><span>{brl(o.shipping)}</span></p>
+                      <p className="flex justify-between">
+                        <span>Frete {c?.frete_metodo ? `(${c.frete_metodo})` : ""}</span>
+                        <span>{brl(o.shipping)}</span>
+                      </p>
                       {o.discount > 0 && (
                         <p className="flex justify-between"><span>Desconto Pix</span><span>−{brl(o.discount)}</span></p>
                       )}
