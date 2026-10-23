@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import type { PaymentMeta } from "./payments";
 
 export type OrderItem = { slug: string; name: string; qty: number; price: number };
 export type Customer = Record<string, string>;
@@ -13,6 +14,7 @@ export type Order = {
   payment: string;
   status: string;
   tracking_code: string | null;
+  payment_meta: PaymentMeta | null;
   created_at: string;
   customer: Customer | null;
   account_name?: string | null;
@@ -26,16 +28,18 @@ export const STATUS_LABEL: Record<string, string> = {
   canceled: "Cancelado",
 };
 
-type RawOrder = Omit<Order, "items" | "customer"> & {
+type RawOrder = Omit<Order, "items" | "customer" | "payment_meta"> & {
   items: string;
   customer: string | null;
   tracking_code?: string | null;
+  payment_meta?: string | null;
 };
 
 function parse(r: RawOrder): Order {
   return {
     ...r,
     tracking_code: r.tracking_code ?? null,
+    payment_meta: r.payment_meta ? (JSON.parse(r.payment_meta) as PaymentMeta) : null,
     items: JSON.parse(r.items) as OrderItem[],
     customer: r.customer ? (JSON.parse(r.customer) as Customer) : null,
   };
@@ -72,7 +76,7 @@ export function createOrder(input: {
 
     const shipping = Number(input.shippingPrice.toFixed(2));
     const discount = input.payment === "pix" ? subtotal * 0.05 : 0;
-    const total = subtotal + shipping - discount;
+    const total = Number((subtotal + shipping - discount).toFixed(2));
     const code = `DL-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
 
     db.prepare(
@@ -95,6 +99,25 @@ export function createOrder(input: {
     db.exec("ROLLBACK");
     return { ok: false, error: e instanceof Error ? e.message : "Erro ao criar pedido" };
   }
+}
+
+export function saveOrderPaymentMeta(code: string, meta: PaymentMeta, newStatus?: string) {
+  if (newStatus) {
+    db.prepare("UPDATE orders SET payment_meta = ?, status = ? WHERE code = ?").run(
+      JSON.stringify(meta),
+      newStatus,
+      code,
+    );
+  } else {
+    db.prepare("UPDATE orders SET payment_meta = ? WHERE code = ?").run(JSON.stringify(meta), code);
+  }
+}
+
+export function getOrderByCode(code: string): (Order & { user_id: number | null }) | undefined {
+  const row = db.prepare("SELECT * FROM orders WHERE code = ?").get(code) as unknown as
+    | (RawOrder & { user_id: number | null })
+    | undefined;
+  return row ? { ...parse(row), user_id: row.user_id } : undefined;
 }
 
 export function listOrders(userId: number): Order[] {
@@ -144,7 +167,6 @@ export function setOrderStatus(code: string, status: string, trackingCode?: stri
       }
     }
     const nextTracking = trackingCode !== undefined ? trackingCode.trim() || null : row.tracking_code;
-    // Se preencheu código de rastreio ainda em "paid", promove automaticamente para "shipped"
     const finalStatus = nextTracking && status === "paid" && row.status === "paid" ? "shipped" : status;
     db.prepare("UPDATE orders SET status = ?, tracking_code = ? WHERE code = ?").run(
       finalStatus,

@@ -110,6 +110,7 @@ function migrate(db: DatabaseSync) {
   addColumnIfMissing(db, "users", "role", "TEXT NOT NULL DEFAULT 'customer'");
   addColumnIfMissing(db, "orders", "customer", "TEXT");
   addColumnIfMissing(db, "orders", "tracking_code", "TEXT");
+  addColumnIfMissing(db, "orders", "payment_meta", "TEXT");
   ensureAdmin(db);
 
   const { n } = db.prepare("SELECT COUNT(*) AS n FROM products").get() as { n: number };

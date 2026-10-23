@@ -1,18 +1,53 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
-import { listOrders, STATUS_LABEL } from "@/lib/orders";
+import { getOrderByCode, listOrders, saveOrderPaymentMeta, setOrderStatus, STATUS_LABEL } from "@/lib/orders";
 import { listAddresses, listCards } from "@/lib/profile";
+import { checkInfinitePayStatus } from "@/lib/payments";
 import { brl } from "@/lib/format";
 import { OrderTrackingBox } from "@/components/OrderTrackingBox";
+import { PixPaymentPanel } from "@/components/PixPaymentPanel";
 import { ProfileManager } from "@/components/ProfileManager";
 import { logout } from "./actions";
 
 export const metadata = { title: "Minha conta — Decorlines" };
 
-export default async function ContaPage() {
+export default async function ContaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    order_nsu?: string;
+    transaction_nsu?: string;
+    slug?: string;
+    receipt_url?: string;
+  }>;
+}) {
   const user = await getUser();
   if (!user) redirect("/conta/entrar");
+
+  // Se o cliente acabou de voltar do Checkout da InfinitePay com os parâmetros de confirmação:
+  const sp = await searchParams;
+  if (sp?.order_nsu) {
+    const returnedOrder = getOrderByCode(sp.order_nsu);
+    if (returnedOrder && returnedOrder.user_id === user.id && returnedOrder.status === "pending") {
+      const check = await checkInfinitePayStatus({
+        orderCode: returnedOrder.code,
+        transactionNsu: sp.transaction_nsu,
+        slug: sp.slug,
+      });
+      if (check === "paid" || sp.transaction_nsu) {
+        setOrderStatus(returnedOrder.code, "paid");
+        if (returnedOrder.payment_meta) {
+          saveOrderPaymentMeta(returnedOrder.code, {
+            ...returnedOrder.payment_meta,
+            invoiceSlug: sp.slug || returnedOrder.payment_meta.invoiceSlug,
+            transactionNsu: sp.transaction_nsu || returnedOrder.payment_meta.transactionNsu,
+            receiptUrl: sp.receipt_url || returnedOrder.payment_meta.receiptUrl,
+          });
+        }
+      }
+    }
+  }
 
   const orders = listOrders(user.id);
   const addresses = listAddresses(user.id);
@@ -72,6 +107,18 @@ export default async function ContaPage() {
                   trackingCode={o.tracking_code}
                   carrier={o.customer?.frete_metodo}
                 />
+
+                {o.status === "pending" && o.payment === "pix" && o.payment_meta && (
+                  <div className="mt-4">
+                    <PixPaymentPanel
+                      orderCode={o.code}
+                      total={o.total}
+                      initialStatus={o.status}
+                      paymentMeta={o.payment_meta}
+                      compact
+                    />
+                  </div>
+                )}
 
                 <ul className="mt-5 space-y-1 border-t border-line pt-4 text-sm">
                   {o.items.map((i) => (

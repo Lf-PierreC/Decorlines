@@ -5,9 +5,17 @@ import Link from "next/link";
 import { clearCart, useCart } from "@/lib/cart";
 import type { CartProduct } from "@/lib/products";
 import type { SavedAddress, SavedCard } from "@/lib/profile";
+import type { PaymentMeta } from "@/lib/payments";
 import { brl } from "@/lib/format";
+import { PixPaymentPanel } from "./PixPaymentPanel";
 
-type Result = { orderId: string; total: number };
+type Result = {
+  orderId: string;
+  total: number;
+  payment: "pix" | "card";
+  status: string;
+  paymentMeta: PaymentMeta;
+};
 
 type ShippingOption = {
   id: number;
@@ -33,6 +41,7 @@ export function CheckoutForm({
 }) {
   const cart = useCart();
   const [payment, setPayment] = useState<"pix" | "card">("pix");
+  const [installments, setInstallments] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -160,6 +169,7 @@ export function CheckoutForm({
   const shipping = selectedShipping ? selectedShipping.price : 0;
   const discount = payment === "pix" ? subtotal * 0.05 : 0;
   const total = subtotal + shipping - discount;
+  const cardTotal = subtotal + shipping;
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -177,6 +187,7 @@ export function CheckoutForm({
         body: JSON.stringify({
           items: lines.map((l) => ({ slug: l.product.slug, qty: l.qty })),
           payment,
+          installments,
           shippingId: selectedShipping.id,
           saveAddress: selectedAddressId === "new" && saveNewAddress,
           selectedCardId: payment === "card" && selectedCardId !== "new" ? selectedCardId : null,
@@ -200,15 +211,56 @@ export function CheckoutForm({
 
   if (result) {
     return (
-      <section className="mx-auto max-w-xl px-6 py-32 text-center">
-        <p className="eyebrow">Pedido {result.orderId}</p>
-        <h1 className="mt-4 font-serif text-5xl">Obrigado!</h1>
-        <p className="mt-6 text-muted">
-          Recebemos seu pedido de {brl(result.total)}. Você pode acompanhar a preparação e o
-          rastreamento da entrega em tempo real na sua conta.
-        </p>
+      <section className="mx-auto max-w-2xl px-6 py-20">
+        <div className="mb-8 text-center">
+          <p className="eyebrow">Pedido {result.orderId}</p>
+          <h1 className="mt-3 font-serif text-5xl">
+            {result.payment === "pix" ? "Finalize o pagamento via Pix" : "Pedido confirmado!"}
+          </h1>
+        </div>
+
+        {result.payment === "pix" && result.paymentMeta ? (
+          <PixPaymentPanel
+            orderCode={result.orderId}
+            total={result.total}
+            initialStatus={result.status}
+            paymentMeta={result.paymentMeta}
+          />
+        ) : (
+          <div className="border border-line bg-surface p-8 text-center">
+            <p className="eyebrow">
+              {result.status === "paid" ? "Pagamento aprovado" : "Aguardando conclusão"}
+            </p>
+            <p className="mt-2 font-serif text-3xl">
+              {brl(result.total)}{" "}
+              {result.paymentMeta?.installments && result.paymentMeta.installments > 1
+                ? `em ${result.paymentMeta.installments}x sem juros`
+                : ""}
+            </p>
+            {result.paymentMeta?.cardSummary && (
+              <p className="mt-2 text-sm text-muted">Cartão: {result.paymentMeta.cardSummary}</p>
+            )}
+            <p className="mt-4 text-sm text-muted">
+              Sua peça já entrou na fila de preparação. Acompanhe cada etapa e o rastreio de entrega
+              em Meus Pedidos.
+            </p>
+            {result.paymentMeta?.checkoutUrl && (
+              <div className="mt-6">
+                <a
+                  href={result.paymentMeta.checkoutUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn"
+                >
+                  Concluir pagamento na InfinitePay ↗
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-10 flex flex-wrap justify-center gap-4">
-          <Link href="/conta" className="btn">Acompanhar pedido</Link>
+          <Link href="/conta" className="btn">Acompanhar pedido em Minha Conta</Link>
           <Link href="/produtos" className="btn btn-outline">Continuar comprando</Link>
         </div>
       </section>
@@ -442,7 +494,7 @@ export function CheckoutForm({
             <div className="grid gap-3 sm:grid-cols-2">
               {(
                 [
-                  ["pix", "Pix", "5% de desconto"],
+                  ["pix", "Pix", "5% de desconto · Aprovação imediata"],
                   ["card", "Cartão de crédito", "Até 3x sem juros"],
                 ] as const
               ).map(([v, t, d]) => (
@@ -566,6 +618,21 @@ export function CheckoutForm({
                     />
                   </div>
                 )}
+
+                <div className="pt-3">
+                  <label className="eyebrow block">Parcelamento sem juros</label>
+                  <select
+                    value={installments}
+                    onChange={(e) => setInstallments(Number(e.target.value))}
+                    className="mt-2 w-full border border-line bg-white px-3 py-3 text-sm"
+                  >
+                    {[1, 2, 3].map((n) => (
+                      <option key={n} value={n}>
+                        {n}x de {brl(cardTotal / n)} sem juros
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
           </fieldset>
@@ -573,7 +640,13 @@ export function CheckoutForm({
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
 
           <button disabled={loading || !selectedShipping} className="btn w-full disabled:opacity-50">
-            {loading ? "Processando..." : selectedShipping ? `Pagar ${brl(total)}` : "Informe o CEP para calcular o frete"}
+            {loading
+              ? "Processando pagamento..."
+              : selectedShipping
+                ? payment === "pix"
+                  ? `Gerar QR Code Pix · ${brl(total)}`
+                  : `Pagar com cartão · ${installments}x de ${brl(total / installments)}`
+                : "Informe o CEP para calcular o frete"}
           </button>
         </form>
 
@@ -596,7 +669,7 @@ export function CheckoutForm({
               <span>{selectedShipping ? brl(shipping) : "A calcular"}</span>
             </div>
             {discount > 0 && (
-              <div className="flex justify-between"><span className="text-muted">Desconto Pix</span><span>−{brl(discount)}</span></div>
+              <div className="flex justify-between"><span className="text-muted">Desconto Pix (5%)</span><span>−{brl(discount)}</span></div>
             )}
             <div className="flex justify-between pt-2 font-serif text-xl"><span>Total</span><span>{brl(total)}</span></div>
           </div>
