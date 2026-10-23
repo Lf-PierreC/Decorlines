@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { DATA_DIR } from "@/lib/db";
+import { uploadToSupabaseStorage } from "@/lib/supabase";
 import {
   createProduct,
   deleteProduct,
@@ -36,6 +37,12 @@ async function saveImage(file: File): Promise<string> {
   const ext = detectImage(buf);
   if (!ext) throw new Error("Formato de foto inválido. Use JPG, PNG ou WebP.");
   const name = `${randomBytes(16).toString("hex")}.${ext}`;
+
+  // 1. Tenta subir diretamente para o Bucket 'produtos' no Supabase Storage
+  const cloudUrl = await uploadToSupabaseStorage(name, buf, ext);
+  if (cloudUrl) return cloudUrl;
+
+  // 2. Fallback local caso esteja offline ou sem permissão no bucket ainda
   const dir = path.join(DATA_DIR, "uploads");
   await fs.promises.mkdir(dir, { recursive: true });
   await fs.promises.writeFile(path.join(dir, name), buf);

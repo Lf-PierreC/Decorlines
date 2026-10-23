@@ -3,6 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import { SEED_PRODUCTS } from "./seed-products";
+import { syncLocalDatabaseToSupabase } from "./supabase";
 
 /**
  * Banco local (SQLite) em ./data/loja.db.
@@ -110,6 +111,7 @@ function migrate(db: DatabaseSync) {
   addColumnIfMissing(db, "users", "role", "TEXT NOT NULL DEFAULT 'customer'");
   addColumnIfMissing(db, "orders", "customer", "TEXT");
   addColumnIfMissing(db, "orders", "tracking_code", "TEXT");
+  addColumnIfMissing(db, "orders", "payment_meta", "TEXT");
   ensureAdmin(db);
 
   const { n } = db.prepare("SELECT COUNT(*) AS n FROM products").get() as { n: number };
@@ -128,6 +130,7 @@ function open() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   const db = new DatabaseSync(path.join(DATA_DIR, "loja.db"));
   migrate(db);
+  void syncLocalDatabaseToSupabase(db);
   return db;
 }
 

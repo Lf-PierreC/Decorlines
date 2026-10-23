@@ -2,20 +2,35 @@
 
 :root {
   --background: #ffffff;
-  --surface: #f6f2ee;
-  --foreground: #2a1f19;
-  --muted: #8a7b70;
-  --line: #e8e1da;
-  --accent: #3b2a20;
+  --surface: #faf9f7;
+  --surface-muted: #f3efe9;
+  --foreground: #0f0e0d;
+  --foreground-secondary: #332d28;
+  --muted: #756c64;
+  --line: #ebe6e0;
+  --line-subtle: #f0ece7;
+
+  /* Cores oficiais da nova identidade visual */
+  --brand-copper: #ab5f23;
+  --brand-copper-dark: #914d18;
+  --brand-copper-light: #fbf5ee;
+  --brand-copper-border: rgba(171, 95, 35, 0.22);
+  --brand-black: #0f0e0d;
+  --accent: #ab5f23;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
   --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
   --color-muted: var(--muted);
   --color-line: var(--line);
-  --color-accent: var(--accent);
+  --color-accent: var(--brand-copper);
+  --color-copper: var(--brand-copper);
+  --color-copper-dark: var(--brand-copper-dark);
+  --color-copper-light: var(--brand-copper-light);
   --font-sans: var(--font-inter);
   --font-serif: var(--font-serif-display);
 }
@@ -27,67 +42,117 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: var(--accent);
-  color: #fff;
+  background: var(--brand-copper);
+  color: #ffffff;
 }
 
+/* Eyebrow / Tags refinadas com estilo arquitetônico */
 .eyebrow {
-  font-size: 0.7rem;
-  letter-spacing: 0.28em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
+.badge-copper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--brand-copper-light);
+  color: var(--brand-copper-dark);
+  border: 1px solid var(--brand-copper-border);
+  padding: 0.25rem 0.65rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border-radius: 9999px;
+}
+
+/* Botões modernos com precisão e contraste */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.95rem 2rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.22em;
+  gap: 0.55rem;
+  padding: 0.9rem 1.85rem;
+  font-size: 0.73rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  background: var(--accent);
-  color: #fff;
-  border: 1px solid var(--accent);
-  transition: background 0.3s, color 0.3s;
+  background: var(--brand-black);
+  color: #ffffff;
+  border: 1px solid var(--brand-black);
+  border-radius: 2px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 .btn:hover {
-  background: transparent;
-  color: var(--accent);
+  background: var(--brand-copper);
+  border-color: var(--brand-copper);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(171, 95, 35, 0.2);
 }
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-copper {
+  background: var(--brand-copper);
+  border-color: var(--brand-copper);
+  color: #ffffff;
+}
+.btn-copper:hover {
+  background: var(--brand-copper-dark);
+  border-color: var(--brand-copper-dark);
+  color: #ffffff;
+}
+
 .btn-outline {
-  background: transparent;
-  color: var(--accent);
+  background: #ffffff;
+  color: var(--foreground);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 .btn-outline:hover {
-  background: var(--accent);
-  color: #fff;
+  background: var(--surface);
+  border-color: var(--brand-copper);
+  color: var(--brand-copper);
 }
 
+/* Campos de entrada refinados */
 .input {
   width: 100%;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  padding: 0.8rem 0;
-  background: transparent;
-  font-size: 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  font-size: 0.92rem;
+  color: var(--foreground);
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 .input:focus {
-  border-bottom-color: var(--accent);
+  border-color: var(--brand-copper);
+  box-shadow: 0 0 0 3px rgba(171, 95, 35, 0.1);
 }
 
+/* Animações suaves */
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -95,5 +160,16 @@ body {
   }
 }
 .fade-up {
-  animation: fade-up 0.8s ease both;
+  animation: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Padrão decorativo sutil das linhas arquitetônicas 3D */
+.pattern-lines {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(171, 95, 35, 0.03) 0px,
+    rgba(171, 95, 35, 0.03) 1px,
+    transparent 1px,
+    transparent 10px
+  );
 }

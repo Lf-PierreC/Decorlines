@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { supabaseRest } from "./supabase";
 
 export type Product = {
   id: number;
@@ -101,22 +102,44 @@ function uniqueSlug(name: string) {
 }
 
 export function createProduct(p: ProductInput) {
-  db.prepare(
-    `INSERT INTO products (slug, name, category, price, tone, image, description, details, weight_kg, stock, active)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    uniqueSlug(p.name),
-    p.name,
-    p.category,
-    p.price,
-    p.tone,
-    p.image,
-    p.description,
-    JSON.stringify(p.details),
-    p.weightKg,
-    p.stock,
-    p.active ? 1 : 0,
-  );
+  const slug = uniqueSlug(p.name);
+  const res = db
+    .prepare(
+      `INSERT INTO products (slug, name, category, price, tone, image, description, details, weight_kg, stock, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      slug,
+      p.name,
+      p.category,
+      p.price,
+      p.tone,
+      p.image,
+      p.description,
+      JSON.stringify(p.details),
+      p.weightKg,
+      p.stock,
+      p.active ? 1 : 0,
+    );
+
+  void supabaseRest("products", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates",
+    body: {
+      id: Number(res.lastInsertRowid),
+      slug,
+      name: p.name,
+      category: p.category,
+      price: p.price,
+      tone: p.tone,
+      image: p.image,
+      description: p.description,
+      details: p.details,
+      weight_kg: p.weightKg,
+      stock: p.stock,
+      active: p.active,
+    },
+  });
 }
 
 export function updateProduct(id: number, p: ProductInput) {
@@ -136,8 +159,27 @@ export function updateProduct(id: number, p: ProductInput) {
     p.active ? 1 : 0,
     id,
   );
+
+  void supabaseRest(`products?id=eq.${encodeURIComponent(String(id))}`, {
+    method: "PATCH",
+    body: {
+      name: p.name,
+      category: p.category,
+      price: p.price,
+      tone: p.tone,
+      image: p.image,
+      description: p.description,
+      details: p.details,
+      weight_kg: p.weightKg,
+      stock: p.stock,
+      active: p.active,
+    },
+  });
 }
 
 export function deleteProduct(id: number) {
   db.prepare("DELETE FROM products WHERE id = ?").run(id);
+  void supabaseRest(`products?id=eq.${encodeURIComponent(String(id))}`, {
+    method: "DELETE",
+  });
 }

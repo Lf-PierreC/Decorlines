@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
-import { createOrder } from "@/lib/orders";
+import { createOrder, saveOrderPaymentMeta } from "@/lib/orders";
+import { createCardCharge, createPixCharge } from "@/lib/payments";
 import { addAddress, addCard, listAddresses, listCards } from "@/lib/profile";
 import { calculateShipping } from "@/lib/shipping";
 
@@ -11,7 +12,7 @@ const clip = (v: unknown, max = 120) => String(v ?? "").trim().slice(0, max);
  * 1. Exige que o cliente esteja autenticado
  * 2. Recalcula e valida o frete no Melhor Envio para o CEP informado
  * 3. Salva endereço/cartão no perfil se solicitado
- * 4. Recalcula o preço, confere o estoque e salva o pedido vinculado à conta
+ * 4. Cria o pedido e gera a cobrança Pix (QR Code + Copia e Cola) ou Cartão
  */
 export async function POST(req: Request) {
   const user = await getUser();
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
     : [];
   const payment = body.payment === "card" ? "card" : "pix";
   const shippingId = Number(body.shippingId);
+  const installments = Math.min(3, Math.max(1, Number(body.installments) || 1));
 
   const c = body.customer ?? {};
   const cep = clip(c.cep, 12).replace(/\D/g, "").slice(0, 8);
@@ -42,6 +44,8 @@ export async function POST(req: Request) {
   }
 
   const nome = clip(c.nome) || user.name;
+  const email = clip(c.email) || user.email;
+  const cpf = clip(c.cpf, 20);
   const endereco = clip(c.endereco);
   const numero = clip(c.numero, 20);
   const complemento = clip(c.complemento);
@@ -49,7 +53,6 @@ export async function POST(req: Request) {
   const cidade = clip(c.cidade);
   const uf = clip(c.uf, 2).toUpperCase();
 
-  // Se o cliente pediu para salvar o novo endereço (ou se ainda não tinha nenhum salvo)
   const existingAddresses = listAddresses(user.id);
   if ((body.saveAddress || existingAddresses.length === 0) && cep.length === 8 && endereco && numero) {
     addAddress(user.id, {
@@ -72,7 +75,7 @@ export async function POST(req: Request) {
     const existingCard = userCards.find((card) => card.id === selectedCardId);
 
     if (existingCard) {
-      cartaoUsado = `${existingCard.brand} •••• ${existingCard.last4}`;
+      cartaoUsado = `${existingCard.brand} •••• ${existingCard.last4} (${installments}x)`;
     } else {
       const cardDigits = String(c.cardNumber ?? "").replace(/\D/g, "");
       const holderName = clip(c.cardHolder) || nome;
@@ -87,17 +90,17 @@ export async function POST(req: Request) {
           cardNumberDigits: cardDigits,
           expiry: expiry || "12/29",
         });
-        cartaoUsado = `${saved.brand} •••• ${saved.last4}`;
+        cartaoUsado = `${saved.brand} •••• ${saved.last4} (${installments}x)`;
       } else {
-        cartaoUsado = `final ${cardDigits.slice(-4)}`;
+        cartaoUsado = `final ${cardDigits.slice(-4)} (${installments}x)`;
       }
     }
   }
 
   const customer: Record<string, string> = {
     nome,
-    email: clip(c.email) || user.email,
-    cpf: clip(c.cpf, 20),
+    email,
+    cpf,
     telefone: clip(c.telefone, 30),
     cep,
     endereco,
@@ -119,11 +122,36 @@ export async function POST(req: Request) {
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  // TODO: InfinitePay -> criar cobrança
-  return NextResponse.json({
-    orderId: result.code,
-    total: result.total,
-    loggedIn: true,
-    simulated: true,
-  });
+  if (payment === "pix") {
+    const paymentMeta = await createPixCharge({
+      orderCode: result.code,
+      total: result.total,
+      customer: { nome, email, cpf },
+    });
+    saveOrderPaymentMeta(result.code, paymentMeta);
+    return NextResponse.json({
+      orderId: result.code,
+      total: result.total,
+      payment: "pix",
+      status: "pending",
+      paymentMeta,
+    });
+  } else {
+    const cardResult = await createCardCharge({
+      orderCode: result.code,
+      total: result.total,
+      installments,
+      cardSummary: cartaoUsado,
+      customer: { nome, email, cpf },
+    });
+    const newStatus = cardResult.approved ? "paid" : "pending";
+    saveOrderPaymentMeta(result.code, cardResult.meta, newStatus);
+    return NextResponse.json({
+      orderId: result.code,
+      total: result.total,
+      payment: "card",
+      status: newStatus,
+      paymentMeta: cardResult.meta,
+    });
+  }
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, ensureAdmin } from "@/lib/db";
 import { createSession, destroySession, getUser, hashPassword, verifyPassword } from "@/lib/auth";
+import { supabaseRest } from "@/lib/supabase";
 import {
   addAddress,
   addCard,
@@ -34,11 +35,30 @@ export async function register(_: FormState, form: FormData): Promise<FormState>
   const exists = db.prepare("SELECT 1 FROM users WHERE email = ?").get(email);
   if (exists) return { error: "Este e-mail já está cadastrado." };
 
+  const pwdHash = hashPassword(password);
   const res = db
     .prepare("INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)")
-    .run(name, email, hashPassword(password));
+    .run(name, email, pwdHash);
   ensureAdmin(db); // o primeiro usuário cadastrado vira administrador
-  await createSession(Number(res.lastInsertRowid));
+
+  const userId = Number(res.lastInsertRowid);
+  const createdUser = db
+    .prepare("SELECT id, role FROM users WHERE id = ?")
+    .get(userId) as { id: number; role: string } | undefined;
+
+  void supabaseRest("users", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates",
+    body: {
+      id: userId,
+      name,
+      email,
+      password_hash: pwdHash,
+      role: createdUser?.role ?? "customer",
+    },
+  });
+
+  await createSession(userId);
   redirect(dest);
 }
 

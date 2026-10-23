@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
+import { supabaseRest } from "./supabase";
 
 export type SavedAddress = {
   id: number;
@@ -80,6 +81,10 @@ export function addAddress(
 
   if (makeDefault) {
     db.prepare("UPDATE addresses SET is_default = 0 WHERE user_id = ?").run(userId);
+    void supabaseRest(`addresses?user_id=eq.${userId}`, {
+      method: "PATCH",
+      body: { is_default: false },
+    });
   }
 
   const res = db
@@ -101,8 +106,28 @@ export function addAddress(
       makeDefault ? 1 : 0,
     );
 
+  const id = Number(res.lastInsertRowid);
+  void supabaseRest("addresses", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates",
+    body: {
+      id,
+      user_id: userId,
+      label: input.label,
+      recipient: input.recipient,
+      cep: input.cep,
+      endereco: input.endereco,
+      numero: input.numero,
+      complemento: input.complemento,
+      bairro: input.bairro,
+      cidade: input.cidade,
+      uf: input.uf.toUpperCase(),
+      is_default: makeDefault,
+    },
+  });
+
   return {
-    id: Number(res.lastInsertRowid),
+    id,
     ...input,
     uf: input.uf.toUpperCase(),
     isDefault: makeDefault,
@@ -112,10 +137,22 @@ export function addAddress(
 export function setDefaultAddress(userId: number, addressId: number) {
   db.prepare("UPDATE addresses SET is_default = 0 WHERE user_id = ?").run(userId);
   db.prepare("UPDATE addresses SET is_default = 1 WHERE id = ? AND user_id = ?").run(addressId, userId);
+  void supabaseRest(`addresses?user_id=eq.${userId}`, {
+    method: "PATCH",
+    body: { is_default: false },
+  }).then(() =>
+    supabaseRest(`addresses?id=eq.${addressId}&user_id=eq.${userId}`, {
+      method: "PATCH",
+      body: { is_default: true },
+    }),
+  );
 }
 
 export function deleteAddress(userId: number, addressId: number) {
   db.prepare("DELETE FROM addresses WHERE id = ? AND user_id = ?").run(addressId, userId);
+  void supabaseRest(`addresses?id=eq.${addressId}&user_id=eq.${userId}`, {
+    method: "DELETE",
+  });
   const hasDefault = db
     .prepare("SELECT 1 FROM addresses WHERE user_id = ? AND is_default = 1")
     .get(userId);
@@ -167,6 +204,10 @@ export function addCard(
 
   if (makeDefault) {
     db.prepare("UPDATE cards SET is_default = 0 WHERE user_id = ?").run(userId);
+    void supabaseRest(`cards?user_id=eq.${userId}`, {
+      method: "PATCH",
+      body: { is_default: false },
+    });
   }
 
   const brand = detectCardBrand(input.cardNumberDigits);
@@ -181,8 +222,25 @@ export function addCard(
     )
     .run(userId, label, brand, input.holderName.toUpperCase(), last4, input.expiry, token, makeDefault ? 1 : 0);
 
+  const id = Number(res.lastInsertRowid);
+  void supabaseRest("cards", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates",
+    body: {
+      id,
+      user_id: userId,
+      label,
+      brand,
+      holder_name: input.holderName.toUpperCase(),
+      last4,
+      expiry: input.expiry,
+      token,
+      is_default: makeDefault,
+    },
+  });
+
   return {
-    id: Number(res.lastInsertRowid),
+    id,
     label,
     brand,
     holderName: input.holderName.toUpperCase(),
@@ -195,10 +253,22 @@ export function addCard(
 export function setDefaultCard(userId: number, cardId: number) {
   db.prepare("UPDATE cards SET is_default = 0 WHERE user_id = ?").run(userId);
   db.prepare("UPDATE cards SET is_default = 1 WHERE id = ? AND user_id = ?").run(cardId, userId);
+  void supabaseRest(`cards?user_id=eq.${userId}`, {
+    method: "PATCH",
+    body: { is_default: false },
+  }).then(() =>
+    supabaseRest(`cards?id=eq.${cardId}&user_id=eq.${userId}`, {
+      method: "PATCH",
+      body: { is_default: true },
+    }),
+  );
 }
 
 export function deleteCard(userId: number, cardId: number) {
   db.prepare("DELETE FROM cards WHERE id = ? AND user_id = ?").run(cardId, userId);
+  void supabaseRest(`cards?id=eq.${cardId}&user_id=eq.${userId}`, {
+    method: "DELETE",
+  });
   const hasDefault = db.prepare("SELECT 1 FROM cards WHERE user_id = ? AND is_default = 1").get(userId);
   if (!hasDefault) {
     db.prepare(
