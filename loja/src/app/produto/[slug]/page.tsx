@@ -48,7 +48,6 @@ export default async function ProdutoPage({ params }: Props) {
             <span>Impressão 3D em camadas de alta resolução</span>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: product.tone }} />
-              Tom: <strong className="text-[#111111] uppercase">{product.tone}</strong>
             </span>
           </div>
         </div>
@@ -109,14 +108,7 @@ export default async function ProdutoPage({ params }: Props) {
 
           {/* Benefícios Rápidos */}
           <div className="mt-8 space-y-2.5 rounded-sm border border-line bg-surface/50 p-4 text-xs text-muted">
-            <div className="flex items-center gap-2">
-              <span>🚚</span>
-              <span>Cálculo de frete em tempo real no checkout (Melhor Envio)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span>🛡️</span>
-              <span>Pagamento seguro via InfinitePay com garantia total</span>
-            </div>
+            
             <div className="flex items-center gap-2">
               <span>🌱</span>
               <span>Produzido em biopolímero biodegradável sustentável</span>

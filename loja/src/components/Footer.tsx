@@ -50,7 +50,7 @@ export function Footer() {
         {/* Coluna Atendimento & Contato */}
         <div className="text-xs text-muted md:col-span-2">
           <p className="eyebrow mb-3.5 text-[#111111]">Atendimento</p>
-          <p className="text-[#332D28] font-medium">contato@decorlines.com.br</p>
+          <p className="text-[#332D28] font-medium">decorlinesbrasil@gmail.com</p>
           <p className="mt-1">Segunda a Sexta, das 9h às 18h</p>
           <p className="mt-2 text-[0.7rem]">Mogi das Cruzes / SP</p>
         </div>
@@ -60,13 +60,13 @@ export function Footer() {
           <p className="eyebrow mb-3.5 text-[#111111]">Pagamento & Envio</p>
           <div className="space-y-1.5 text-xs text-[#5A5149]">
             <p className="flex items-center gap-1.5">
-              <span className="font-semibold text-[#111111]">⚡ Pix:</span> 5% de desconto automático
+              <span className="font-semibold text-[#111111]">⚡ </span>Pix: 5% de desconto automático
             </p>
             <p className="flex items-center gap-1.5">
-              <span className="font-semibold text-[#111111]">💳 Cartão:</span> até 3x sem juros
+              <span className="font-semibold text-[#111111]">💳 </span>Cartão: até 3x sem juros
             </p>
             <p className="flex items-center gap-1.5">
-              <span className="font-semibold text-[#111111]">🚚 Frete:</span> via Melhor Envio (Correios & Jadlog)
+              <span className="font-semibold text-[#111111]">🚚 </span>Frete: via Melhor Envio (Correios & Jadlog)
             </p>
           </div>
         </div>

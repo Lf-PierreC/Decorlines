@@ -20,7 +20,7 @@ export async function Header() {
         </span>
       </div>
 
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
+      <div className="mx-auto flex h-16 md:h-18 max-w-7xl items-center justify-between px-6">
         {/* Navegação esquerda */}
         <nav className="flex flex-1 items-center gap-6 text-[0.74rem] font-medium uppercase tracking-[0.18em] text-[#332D28] sm:gap-8">
           <Link href="/" className="transition-colors hover:text-[#AB5F23]">

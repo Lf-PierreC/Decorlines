@@ -11,15 +11,10 @@ export default function Home() {
     <>
       {/* 1. HERO SECTION ARQUITETÔNICA */}
       <section className="relative overflow-hidden border-b border-line bg-gradient-to-b from-white via-surface/40 to-surface/80">
-        <div className="mx-auto grid max-w-7xl items-center gap-12 px-6 py-16 md:grid-cols-12 md:py-28">
+        <div className="mx-auto grid max-w-7xl items-center gap-8 md:gap-12 px-6 pt-6 pb-14 md:pt-20 md:pb-20 md:grid-cols-12">
           {/* Coluna Texto */}
           <div className="fade-up md:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#AB5F23]/25 bg-[#FBF5EE] px-3.5 py-1 text-[0.68rem] font-semibold tracking-[0.16em] uppercase text-[#914D18]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#AB5F23] animate-pulse" />
-              Design Impresso em 3D • Produção Autoral
-            </div>
-
-            <h1 className="mt-6 font-serif text-5xl leading-[1.08] text-[#111111] sm:text-6xl lg:text-7xl">
+            <h1 className="font-serif text-5xl leading-[1.08] text-[#111111] sm:text-6xl lg:text-7xl">
               Linhas arquitetônicas,
               <br />
               <span className="italic text-[#AB5F23]">presença contemporânea.</span>
@@ -36,7 +31,7 @@ export default function Home() {
                 Explorar Catálogo
               </Link>
               <Link href="/#sobre" className="btn btn-outline !py-3.5 !px-8">
-                Conhecer o Estúdio
+                Sobre nós
               </Link>
             </div>
 
@@ -68,9 +63,8 @@ export default function Home() {
                 <div className="relative z-10 flex h-full flex-col justify-between">
                   <div className="flex items-center justify-between border-b border-line pb-4">
                     <div className="flex items-center gap-2">
-                      <LogoIcon className="h-6 w-6 text-[#111111]" />
                       <span className="text-[0.68rem] font-semibold tracking-[0.2em] uppercase text-muted">
-                        Atelier Decorlines
+                        Decorlines
                       </span>
                     </div>
                     <span className="text-[0.62rem] font-semibold text-[#AB5F23] bg-[#FBF5EE] px-2 py-0.5 border border-[#AB5F23]/20">
@@ -88,22 +82,13 @@ export default function Home() {
                   </div>
 
                   <div className="border-t border-line pt-3 flex items-center justify-between text-[0.68rem] text-muted">
-                    <span>Camadas de 0.2mm</span>
+                    
                     <span className="font-medium text-[#111111]">100% Produção Própria</span>
                   </div>
                 </div>
               </div>
 
-              {/* Card flutuante sobreposto */}
-              <div className="absolute -bottom-5 -left-5 hidden sm:block border border-line bg-white p-4 shadow-lg">
-                <p className="text-[0.62rem] font-semibold uppercase tracking-wider text-muted">Processo 3D</p>
-                <p className="mt-0.5 font-serif text-sm text-[#111111]">Precisão em cada linha</p>
-                <div className="mt-2 flex items-center gap-1.5">
-                  <span className="h-1.5 w-8 rounded-full bg-[#AB5F23]" />
-                  <span className="h-1.5 w-4 rounded-full bg-[#AB5F23]/40" />
-                  <span className="h-1.5 w-2 rounded-full bg-[#AB5F23]/20" />
-                </div>
-              </div>
+             
             </div>
           </div>
         </div>
@@ -201,7 +186,7 @@ export default function Home() {
 
       {/* 5. SEÇÃO SOBRE NÓS / ESTÚDIO */}
       <section id="sobre" className="mx-auto max-w-5xl scroll-mt-24 px-6 py-24 text-center">
-        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-[#FBF5EE] border border-[#AB5F23]/25">
+        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center ">
           <LogoIcon className="h-8 w-8 text-[#111111]" />
         </div>
         <p className="eyebrow text-[#AB5F23]">Nossa História</p>
@@ -231,7 +216,7 @@ export default function Home() {
             <p className="mt-1 text-xs text-muted">Desconto automático aplicado no checkout seguro.</p>
           </div>
           <div className="p-4">
-            <p className="font-serif text-xl text-[#111111]">Envio Todo Brasil</p>
+            <p className="font-serif text-xl text-[#111111]">Envio Para Todo o Brasil</p>
             <p className="mt-1 text-xs text-muted">Cálculo em tempo real e rastreio passo a passo.</p>
           </div>
           <div className="p-4">
